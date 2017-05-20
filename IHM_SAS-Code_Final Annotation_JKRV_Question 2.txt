@@ -1,0 +1,337 @@
+FILENAME REFFILE '/home/jrasmusvorrath0/train.csv';
+
+PROC IMPORT DATAFILE=REFFILE
+	DBMS=CSV
+	OUT=WORK.IMPORT3;
+	GETNAMES=YES;
+RUN;
+
+PROC CONTENTS DATA=WORK.IMPORT3; RUN;											*Data import;
+
+data trainQ; set work.import3; run;
+
+*proc print data = trainQ;* run;
+
+data train_subQ; set trainQ;
+where id >= 1 AND id <= 1000; run;												*Partion training set for presubmission cross-validation;
+
+*proc print data = train_subQ;* run;
+
+data train_subQ2; set trainQ;
+where id > 1000; run;
+
+*proc print data = train_subQ2;* run;
+
+data train_valQ; set train_subQ2;												*Using second subset to create empty SalePrice column;
+SalePrice = .;
+
+*proc print data = train_subQ;* run;
+
+*proc print data = train_valQ;* run;
+
+data train_testQ; set train_subQ train_valQ; run;								*Concatenating subsets to create test set;
+
+*proc print data = train_testQ;* run;
+
+data train_test_logQ; set train_testQ;											
+log_SalePrice = log(SalePrice); run;											*EDA: log of SalePrice, given regression diagnostic plots;
+
+*proc print data = train_test_logQ;* run;
+
+data train_test_log_fullQ; set train_testQ;
+log_SalePrice = log(SalePrice);
+log_GrLivArea = log(GrLivArea); run;											*EDA: log of GrLivArea, given regression diagnostic plots;
+
+*proc print data = train_test_log_fullQ;* run;
+
+
+data reg_test1Q; set train_test_log_fullQ;										*Dummy-coded Neighborhoods & Interactions for PROC REG;
+if Neighborhood = "BrkSide" then d1 = 1; else d1 = 0;
+if Neighborhood = "Edwards" then d2 = 1; else d2 = 0;
+if Neighborhood = "NAmes" then d3 = 1; else d3 = 0;
+if Neighborhood = "BrDale" then d4 = 1; else d4 = 0;
+if Neighborhood = "NridgHt" then d5 = 1; else d5 = 0;
+if Neighborhood = "OldTown" then d6 = 1; else d6 = 0;
+if Neighborhood = "Sawyer" then d7 = 1; else d7 = 0;
+if Neighborhood = "SawyerW" then d8 = 1; else d8 = 0;
+if Neighborhood = "Somerst" then d9 = 1; else d9 = 0;
+if Neighborhood = "StoneBr" then d10 = 1; else d10 = 0;
+if Neighborhood = "Gilbert" then d11 = 1; else d11 = 0;
+if Neighborhood = "Mitchel" then d12 = 1; else d12 = 0;
+if Neighborhood = "NWAmes" then d13 = 1; else d13 = 0;
+int1 = d1*GrLivArea; int2 = d2*GrLivArea; int3 = d3*GrLivArea; int4 = d4*GrLivArea;
+int5 = d5*GrLivArea; int6 = d6*GrLivArea; int7 = d7*GrLivArea; int8 = d8*GrLivArea;
+int9 = d9*GrLivArea; int10 = d10*GrLivArea; int11 = d11*GrLivArea; int12 = d12*GrLivArea;
+int13 = d13*GrLivArea; intA = d1*log_GrLivArea; intB = d2*log_GrLivArea; intC = d3*log_GrLivArea; intD = d4*log_GrLivArea;
+intE = d5*log_GrLivArea; intF = d6*log_GrLivArea; intG = d7*log_GrLivArea; intH = d8*log_GrLivArea; intI = d9*log_GrLivArea;
+intJ = d10*log_GrLivArea; intK = d11*log_GrLivArea; intL = d12*log_GrLivArea; intM = d13*log_GrLivArea; run;
+
+*proc print data = reg_test1Q;* run;
+
+																				*Lines (9) from original document truncated;
+
+data reg_test1Q_2; set reg_test1Q;												*Dummy-coded factor variable levels for PROC REG relevant to QOI, given automated selection results;
+if BldgType = "1Fam" then dBT_1 = 1; else dBT_1 = 0;
+if BldgType = "2fmCon" then dBT_2 = 1; else dBT_2 = 0;
+if BldgType = "Duplex" then dBT_3 = 1; else dBT_3 = 0;
+if BldgType = "TwnhsE" then dBT_4 = 1; else dBT_4 = 0;
+if BldgType = "Twnhs" then dBT_5 = 1; else dBT_5 = 0;
+if Condition2 = "Norm" then dC2_1 = 1; else dC2_1 = 0;
+if Condition2 = "Artery" then dC2_2 = 1; else dC2_2 = 0;
+if Condition2 = "RRNn" then dC2_3 = 1; else dC2_3 = 0;
+if Condition2 = "Feedr" then dC2_4 = 1; else dC2_4 = 0;
+if Condition2 = "PosN" then dC2_5 = 1; else dC2_5 = 0;
+if Condition2 = "PosA" then dC2_6 = 1; else dC2_6 = 0;
+if Condition2 = "RRAn" then dC2_7 = 1; else dC2_7 = 0;
+if Condition2 = "RRAe" then dC2_8 = 1; else dC2_8 = 0;
+if SaleCondition = "Normal" then dSC_1 = 1; else dSC_1 = 0;
+if SaleCondition = "Abnormal" then dSC_2 = 1; else dSC_2 = 0;
+if SaleCondition = "Partial" then dSC_3 = 1; else dSC_3 = 0;
+if SaleCondition = "AdjLand" then dSC_4 = 1; else dSC_4 = 0;
+if SaleCondition = "Alloca" then dSC_5 = 1; else dSC_5 = 0;
+if SaleCondition = "Family" then dSC_6 = 1; else dSC_6 = 0;
+if KitchenQual = "Gd" then dKQ_1 = 1; else dKQ_1 = 0;
+if KitchenQual = "TA" then dKQ_2 = 1; else dKQ_2 = 0;
+if KitchenQual = "Ex" then dKQ_3 = 1; else dKQ_3 = 0;
+if KitchenQual = "Fa" then dKQ_4 = 1; else dKQ_4 = 0;
+run;
+
+data reg_test1Q_3; set reg_test1Q_2;
+if _n_ = 524 then delete;
+if _n_ = 826 then delete; run;
+
+data reg_test1Q_4; set reg_test1Q_3;
+if _n_ = 31 then delete;
+if _n_ = 314 then delete;
+if _n_ = 336 then delete; run;
+
+data reg_test1Q_5; set reg_test1Q_4;
+if _n_ = 249 then delete; run;
+
+data reg_test1Q_6; set reg_test1Q_5;
+if _n_ = 702 then delete; run;
+
+
+
+proc sgscatter data = reg_test1Q_6;												*EDA: Scatterplot matrix, preferred model variables;
+matrix log_SalePrice log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt;
+run;
+
+																				*EDA: Individual scatterplots, lines (51) from original document truncated;
+
+proc glmselect data = reg_test1Q plots = coefficientpanel;						*Automated Selection: Full model, stepwise choose CV, include log GrLivArea, also Neighborhoods meeting LR assumptions best;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood Alley BedroomAbvGr BldgType BsmtCond BsmtExposure BsmtFinSF1 BsmtFinSF2 BsmtFinType1 BsmtFinType2 BsmtFullBath BsmtHalfBath BsmtQual BsmtUnfSF CentralAir Condition1 Condition2 Electrical EnclosedPorch ExterCond ExterQual Exterior1st Exterior2nd Fence FireplaceQu Fireplaces Foundation FullBath Functional GarageArea GarageCars GarageCond GarageFinish GarageQual GarageType GarageYrBlt HalfBath Heating HeatingQC HouseStyle KitchenAbvGr KitchenQual LandContour LandSlope LotArea LotConfig LotFrontage LotShape LowQualFinSF MSSubClass MSZoning MasVnrArea MasVnrType MiscFeature MiscVal MoSold OpenPorchSF OverallCond OverallQual PavedDrive PoolArea PoolQC RoofMatl RoofStyle SaleCondition SaleType ScreenPorch Street TotRmsAbvGrd TotalBsmtSF Utilities WoodDeckSF YearBuilt YearRemodAdd YrSold _1stFlrSF _2ndFlrSF _3SsnPorch / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = reg_test1Q plots = coefficientpanel;						*Automated Selection: Stepwise selected variables from full model, stepwise choose CV, include log GrLivArea, also Neighborhoods meeting LR assumptions best;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood BldgType BsmtFinSF1 BsmtFullBath Condition2 GarageCars KitchenQual LotArea OverallCond OverallQual SaleCondition TotalBsmtSF YearBuilt / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (7) from original document truncated;
+
+proc glmselect data = reg_test1Q plots = coefficientpanel;						*Automated Selection: Full model, forward choose CV, include log GrLivArea, also Neighborhoods meeting LR assumptions best;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood Alley BedroomAbvGr BldgType BsmtCond BsmtExposure BsmtFinSF1 BsmtFinSF2 BsmtFinType1 BsmtFinType2 BsmtFullBath BsmtHalfBath BsmtQual BsmtUnfSF CentralAir Condition1 Condition2 Electrical EnclosedPorch ExterCond ExterQual Exterior1st Exterior2nd Fence FireplaceQu Fireplaces Foundation FullBath Functional GarageArea GarageCars GarageCond GarageFinish GarageQual GarageType GarageYrBlt HalfBath Heating HeatingQC HouseStyle KitchenAbvGr KitchenQual LandContour LandSlope LotArea LotConfig LotFrontage LotShape LowQualFinSF MSSubClass MSZoning MasVnrArea MasVnrType MiscFeature MiscVal MoSold OpenPorchSF OverallCond OverallQual PavedDrive PoolArea PoolQC RoofMatl RoofStyle SaleCondition SaleType ScreenPorch Street TotRmsAbvGrd TotalBsmtSF Utilities WoodDeckSF YearBuilt YearRemodAdd YrSold _1stFlrSF _2ndFlrSF _3SsnPorch / selection = forward(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = reg_test1Q plots = coefficientpanel;						*Automated Selection: Forwardly selected variables from full model, forward choose CV, include log GrLivArea, also Neighborhoods meeting LR assumptions best;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood BedroomAbvGr BldgType BsmtFinSF1 BsmtFullBath Condition2 FullBath Functional GarageCars Heating KitchenAbvGr KitchenQual LotArea OverallCond OverallQual SaleCondition ScreenPorch TotalBsmtSF WoodDeckSF YearBuilt YearRemodAdd / selection = forward(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+
+
+proc glmselect data = reg_test1Q plots = coefficientpanel;						*Automated Selection: Full model, backward choose CV, include log GrLivArea, also Neighborhoods meeting LR assumptions best;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood Alley BedroomAbvGr BldgType BsmtCond BsmtExposure BsmtFinSF1 BsmtFinSF2 BsmtFinType1 BsmtFinType2 BsmtFullBath BsmtHalfBath BsmtQual BsmtUnfSF CentralAir Condition1 Condition2 Electrical EnclosedPorch ExterCond ExterQual Exterior1st Exterior2nd Fence FireplaceQu Fireplaces Foundation FullBath Functional GarageArea GarageCars GarageCond GarageFinish GarageQual GarageType GarageYrBlt HalfBath Heating HeatingQC HouseStyle KitchenAbvGr KitchenQual LandContour LandSlope LotArea LotConfig LotFrontage LotShape LowQualFinSF MSSubClass MSZoning MasVnrArea MasVnrType MiscFeature MiscVal MoSold OpenPorchSF OverallCond OverallQual PavedDrive PoolArea PoolQC RoofMatl RoofStyle SaleCondition SaleType ScreenPorch Street TotRmsAbvGrd TotalBsmtSF Utilities WoodDeckSF YearBuilt YearRemodAdd YrSold _1stFlrSF _2ndFlrSF _3SsnPorch / selection = backward(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = reg_test1Q plots = coefficientpanel;						*Automated Selection: Backwardly selected variables from full model, backward choose CV, include log GrLivArea, also Neighborhoods meeting LR assumptions best;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood BedroomAbvGr BsmtFinSF1 BsmtFinSF2 BsmtFullBath BsmtUnfSF Condition2 FullBath Functional GarageArea Heating KitchenAbvGr KitchenQual LotArea MSSubClass OverallCond OverallQual SaleCondition ScreenPorch WoodDeckSF YearBuilt / selection = backward(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+
+
+proc glmselect data = reg_test1Q plots = coefficientpanel;						*Automated Selection: Stepwise selected variables from full model, stepwise choose CV, include log GrLivArea, also Neighborhoods meeting LR assumptions best;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood BldgType BsmtFinSF1 BsmtFullBath Condition2 KitchenQual LotArea OverallCond OverallQual SaleCondition YearBuilt / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = reg_test1Q plots = coefficientpanel;						*Automated Selection: Stepwise selected variables from full model, stepwise choose CV, include log GrLivArea, also Neighborhoods meeting LR assumptions best, with interaction;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea | Neighborhood BldgType BsmtFinSF1 BsmtFullBath Condition2 KitchenQual LotArea OverallCond OverallQual SaleCondition YearBuilt / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+
+
+proc glmselect data = reg_test1Q_2 plots = coefficientpanel;					*Automated Selection: Stepwise selected variables from full model, stepwise choose CV, include log GrLivArea, also all Neighborhoods, dummy-coded factor level exclusion;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood dBT_1 dBT_4 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dC2_3 KitchenQual LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 dSC_6 YearBuilt / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+
+
+proc glmselect data = reg_test1Q_2 plots = coefficientpanel;					*Automated Selection: Stepwise selected variables from full model, stepwise choose CV, include log GrLivArea and Neighborhoods meeting LR assumptions best, dummy-coded factor level exclusion;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea d1 d2 d3 d4 d6 d7 d8 d9 d11 d12 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dC2_3 dKQ_2 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 dSC_6 YearBuilt / selection = stepwise(choose = CV include = 12) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (5) from original document truncated;
+
+proc glmselect data = reg_test1Q_2 plots = coefficientpanel;					*Automated Selection: Stepwise selected variables from full model, stepwise choose CV, include log GrLivArea and all Neighborhoods with interaction, dummy-coded factor level exclusion;
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea | Neighborhood dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 dSC_6 YearBuilt / selection = stepwise(choose = CV include = 2) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+
+
+proc reg data = reg_test1Q_2  plots(label)=(CooksD RStudentByLeverage) outest= logSP_stats_reg1 edf;		*Regression Analysis: Model of interest;
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt / VIF influence adjrsq;
+run; quit;
+
+proc glm data = reg_test1Q_2 plots = all outstat = logSP_stats_glm1;			
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt/ cli solution;
+output out = results p = Predict;
+run;
+
+
+proc reg data = reg_test1Q_3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_stats_reg2 edf;		*Regression Analysis: Model of interest, outlier/lever point exclusion;
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt / VIF influence adjrsq;
+run; quit;
+
+proc glm data = reg_test1Q_3 plots = all outstat = logSP_stats_glm2;
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt/ cli solution;
+output out = results p = Predict;
+run;
+
+
+proc reg data = reg_test1Q_4  plots(label)=(CooksD RStudentByLeverage) outest= logSP_stats_reg2 edf;		*Regression Analysis: Model of interest, outlier/lever point exclusion;
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt / VIF influence adjrsq;
+run; quit;
+
+proc glm data = reg_test1Q_4 plots = all outstat = logSP_stats_glm2;
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt/ cli solution;
+output out = results p = Predict;
+run;
+
+
+
+proc reg data = reg_test1Q_5  plots(label)=(CooksD RStudentByLeverage) outest= logSP_stats_reg3 edf;		*Regression Analysis: Model of interest, outlier/lever point exclusion;
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt / VIF influence adjrsq;
+run; quit;
+
+proc glm data = reg_test1Q_5 plots = all outstat = logSP_stats_glm3;
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt/ cli solution;
+output out = results p = Predict;
+run;
+
+
+
+
+
+
+
+
+proc glmselect data = reg_test1Q_6 plots = coefficientpanel;					*Automated Selection: Variables commonly selected by all automated selection methods, forward choose CV, include log GrLivArea, also all Neighborhoods;					
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood BedroomAbvGr BldgType BsmtFinSF1 BsmtFullBath Condition2 FullBath Functional GarageCars Heating KitchenAbvGr KitchenQual LotArea OverallCond OverallQual SaleCondition ScreenPorch TotalBsmtSF WoodDeckSF YearBuilt YearRemodAdd / selection = forward(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = reg_test1Q_6 plots = coefficientpanel;					*Automated Selection: Variables commonly selected by all automated selection methods, backward choose CV, include log GrLivArea, also all Neighborhoods;	
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood BedroomAbvGr BsmtFinSF1 BsmtFinSF2 BsmtFullBath BsmtUnfSF Condition2 FullBath Functional GarageArea Heating KitchenAbvGr KitchenQual LotArea MSSubClass OverallCond OverallQual SaleCondition ScreenPorch WoodDeckSF YearBuilt / selection = backward(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = reg_test1Q_6 plots = coefficientpanel;					*Automated Selection: Variables commonly selected by all automated selection methods, stepwise choose CV, include log GrLivArea, also all Neighborhoods;	
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea Neighborhood BldgType BsmtFinSF1 BsmtFullBath Condition2 KitchenQual LotArea OverallCond OverallQual SaleCondition YearBuilt / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+
+
+
+
+proc glmselect data = reg_test1Q_6 plots = coefficientpanel;					*Automated Selection: Variables commonly selected by all automated selection methods, stepwise choose CV, include log GrLivArea and Neighborhoods meeting LR assumptions best, given QOI;	
+class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea d1 d2 d3 d4 d6 d7 d8 d9 d11 d12 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dC2_3 dKQ_2 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 dSC_6 YearBuilt / selection = stepwise(choose = CV include = 12) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc reg data = reg_test1Q_6  plots(label)=(CooksD RStudentByLeverage) outest= logSP_stats_reg4 edf;		*Regression Analysis: Preferred Model, paring down redundant parameters;
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt / VIF influence adjrsq;
+run; quit;
+
+proc glm data = reg_test1Q_6 plots = all outstat = logSP_stats_glm4;			*Regression Analysis: Preferred Model, paring down redundant parameters;
+model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt/ cli solution;
+output out = results p = Predict;
+run;
+
+
+
+
+
+
+
+*proc mi data = reg_test1Q_6 out = reg_test1Q_MI_test;							*Mean imputation;
+*fcs reg(log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_3 YearBuilt);
+*var log_SalePrice log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_3 YearBuilt;
+*run;
+
+*data test_mi; set reg_test1Q_MI_test; run;
+
+*proc print data = test_mi;* run;
+
+
+
+
+
+																				*Lines (4) from original document truncated;
+
+*proc reg data = test_mi  plots(label)=(CooksD RStudentByLeverage) outest= logSP_stats_reg5 edf;				*Regression Analysis: preferred model on mean-imputed data;
+*model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt / VIF influence adjrsq;
+*run;* quit;
+
+*proc glm data = test_mi plots = all outstat = logSP_stats_glm5;					*Regression Analysis: preferred model on mean-imputed data;								
+*model log_SalePrice = log_GrLivArea d2 d6 d8 d11 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 YearBuilt/ cli solution;
+*output out = results p = Predict;
+*run;
+
+
+*proc glmselect data = test_mi plots = coefficientpanel;					*Automated Selection: Variables commonly selected by all automated selection methods, stepwise choose CV, include log GrLivArea and Neighborhoods meeting LR assumptions best, given QOI, mean-imputed data;	
+*class Neighborhood MSZoning Street Alley LotFrontage LotShape LandContour Utilities LotConfig LandSlope Condition1 Condition2 BldgType HouseStyle RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinType2 Heating HeatingQC CentralAir Electrical KitchenQual Functional FireplaceQu GarageType GarageFinish GarageQual GarageCond PavedDrive PoolQC Fence MiscFeature SaleType SaleCondition / param = glm; 
+*where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+*model log_SalePrice = log_GrLivArea d1 d2 d3 d4 d6 d7 d8 d9 d11 d12 d13 dBT_1 dBT_5 BsmtFinSF1 BsmtFullBath dC2_5 dC2_3 dKQ_2 dKQ_3 LotArea OverallCond OverallQual dSC_1 dSC_2 dSC_3 dSC_6 YearBuilt / selection = stepwise(choose = CV include = 12) cvdetails = CVPRESS details = steps showpvalues;
+*run;
+
+
+
+
+data results2; set results;														*Skeleton Code for Kaggle Submission;
+if Predict > 0 then SalePrice = Predict;
+if Predict < 0 then SalePrice = 11980;
+keep id SalePrice;
+where id > 800;
+;
+
+proc print data = results2; run;
+
+proc means data = results2;
+var SalePrice;
+run;

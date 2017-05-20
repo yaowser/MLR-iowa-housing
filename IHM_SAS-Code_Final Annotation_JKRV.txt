@@ -1,0 +1,492 @@
+FILENAME REFFILE '/home/jrasmusvorrath0/train.csv';
+
+PROC IMPORT DATAFILE=REFFILE
+	DBMS=CSV
+	OUT=WORK.IMPORT2;
+	GETNAMES=YES;
+RUN;
+
+PROC CONTENTS DATA=WORK.IMPORT2; RUN;											*Data import;
+
+data train; set work.import2; run; 
+
+*proc print data = train;* run;
+
+data train_sub; set train;
+where id >= 1 AND id <= 800; run;												*Partion training set for presubmission cross-validation;
+
+*proc print data = train_sub;* run;
+
+data train_sub2; set train;
+where id > 800; run;
+
+*proc print data = train_sub2;* run;
+
+data train_val; set train_sub2;													*Using second subset to create empty SalePrice column;
+SalePrice = .;	
+
+*proc print data = train_sub;* run;
+
+*proc print data = train_val;* run;
+
+data train_test; set train_sub train_val; run;  								*Concatenating subsets to create test set;
+
+*proc print data = train_test;* run;
+
+data train_sub2; set train_sub;
+where Neighborhood = "NAmes" OR Neighborhood = "Edwards" OR Neighborhood = "BrkSide"; 	*Initial EDA, subsetting by Neighborhoods of interest;
+run;
+
+data train_val2; set train_val;
+where Neighborhood = "NAmes" OR Neighborhood = "Edwards" OR Neighborhood = "BrkSide";
+run;
+
+data train_sub3; set train_sub2;														
+where SalePrice < 280000 AND GrLivArea < 3500;									*EDA: subsetted training set, excluding improbable predictions, given Neighborhoods of interest;
+run;
+
+*proc print data = train_sub4;* run;
+
+*proc print data = train_sub3;* run;
+
+*proc print data = train_sub2;* run;
+
+*proc print data = train_val2;* run;
+
+data train_test2; set train_sub2 train_val2; run;								*EDA: test result comparison, w/ and w/o improbable prediction exclusion;
+
+*proc print data = train_test2;* run;
+
+data train_test3; set train_sub3 train_val2; run;
+
+*proc print data = train_test3;* run;
+
+data train_test4; set train_test;												*EDA: Neighboorhood difference by exclusion;
+where Neighborhood NOT = "NoRidge"; run;
+
+*proc print data = train_test4;* run;
+
+data train_test5; set train_test;
+where Neighborhood NOT = "Blmngtn" AND Neighborhood NOT = "NoRidge"; run;
+
+*proc print data = train_test5;* run;
+
+data train_test_log; set train_test5;											*EDA: log of SalePrice, given regression diagnostic plots;
+log_SalePrice = log(SalePrice); run;
+
+*proc print data = train_test_log;* run;
+
+data train_test_log_full; set train_test;												
+log_SalePrice = log(SalePrice);
+log_GrLivArea = log(GrLivArea); run;											*EDA: log of GrLivArea, given regression diagnostic plots;
+
+*proc print data = train_test_log_full;* run;
+
+data train_test_log_full2; set train_test_log_full;
+where GrLivArea <= 4000; run;													*EDA: test result comparison, w/ and w/o improbable prediction exclusion;
+
+*proc print data = train_test_log_full2;* run;
+
+data train_test_log_full2_1; set train_test_log_full2;							*EDA: Neighboorhood difference by exclusion;
+where Neighborhood NOT = "IDOTRR"; run;
+
+*proc print data = train_test_log_full2_1;* run;
+
+data train_test_log_full2_2; set train_test_log_full2_1;
+where Neighborhood NOT = "BrDale"; run;
+
+*proc print data = train_test_log_full2_2;* run;
+
+data train_test_log_full2_3; set train_test_log_full2;														
+where Neighborhood NOT = "NoRidge" and Neighborhood NOT = "NrldgHt" and Neighborhood NOT = "Somerst"
+and Neighborhood NOT = "StoneBr" and Neighborhood NOT = "Timber"; run;
+
+*proc print data = train_test_log_full2_3;* run;
+
+data train_test_log_full2_4; set train_test_log_full2;
+where Neighborhood NOT = "Blueste" and Neighborhood NOT = "ClearCr" and Neighborhood NOT = "NoRidge"
+and Neighborhood NOT = "NrldgHt" and Neighborhood NOT = "StoneBr" and Neighborhood NOT = "SWISU"; run;
+
+*proc print data = train_test_log_full2_4;* run;
+
+data train_test_log_full2_5; set train_test_log_full2;							*EDA: inclusion by linear correlation, given QOI;
+where Neighborhood = "Blueste" or Neighborhood = "BrkSide" or Neighborhood = "CollgCr" or
+Neighborhood = "Crawfor" or Neighborhood = "Somerst" or Neighborhood = "Edwards" or
+Neighborhood = "Gilbert" or Neighborhood = "Mitchel" or Neighborhood = "SawyerW" or
+Neighborhood = "NAmes" or Neighborhood = "NWAmes" or Neighborhood = "OldTown"; run;
+
+*proc print data = train_test_log_full2_5;* run;
+
+data train_test_log_full2_6; set train_test_log_full2_5;						*EDA: Neighboorhood difference by exclusion;
+where Neighborhood NOT = "SawyerW"; run;
+
+*proc print data = train_test_log_full2_6;* run;
+
+data train_test_log_full2_7; set train_test_log_full2_6;
+where Neighborhood NOT = "Crawfor"; run;
+
+*proc print data = train_test_log_full2_7;* run;
+
+data train_test_log_full2_8; set train_test_log_full2_7;
+where Neighborhood NOT = "CollgCr"; run;
+
+*proc print data = train_test_log_full2_8;* run;
+
+data train_test_log_full2_9; set train_test_log_full2_1;
+where Neighborhood NOT = "Blmngtn"; run;
+
+data train_test_log_full3_1; set train_test_log_full2_9;
+where Neighborhood NOT = "NPkVill"; run;
+
+data reg_test1; set train_test_log_full2;										*Dummy-coded Neighborhoods & Interactions for PROC REG;
+if Neighborhood = "BrkSide" then d1 = 1; else d1 = 0;
+if Neighborhood = "Edwards" then d2 = 1; else d2 = 0;
+if Neighborhood = "NAmes" then d3 = 1; else d3 = 0;
+if Neighborhood = "BrDale" then d4 = 1; else d4 = 0;
+if Neighborhood = "NridgHt" then d5 = 1; else d5 = 0;
+if Neighborhood = "OldTown" then d6 = 1; else d6 = 0;
+if Neighborhood = "Sawyer" then d7 = 1; else d7 = 0;
+if Neighborhood = "SawyerW" then d8 = 1; else d8 = 0;
+if Neighborhood = "Somerst" then d9 = 1; else d9 = 0;
+if Neighborhood = "StoneBr" then d10 = 1; else d10 = 0;
+if Neighborhood = "Gilbert" then d11 = 1; else d11 = 0;
+if Neighborhood = "Mitchel" then d12 = 1; else d12 = 0;
+if Neighborhood = "NWAmes" then d13 = 1; else d13 = 0;
+int1 = d1*GrLivArea; int2 = d2*GrLivArea; int3 = d3*GrLivArea; int4 = d4*GrLivArea;
+int5 = d5*GrLivArea; int6 = d6*GrLivArea; int7 = d7*GrLivArea; int8 = d8*GrLivArea;
+int9 = d9*GrLivArea; int10 = d10*GrLivArea; int11 = d11*GrLivArea; int12 = d12*GrLivArea;
+int13 = d13*GrLivArea; intA = d1*log_GrLivArea; intB = d2*log_GrLivArea; intC = d3*log_GrLivArea; intD = d4*log_GrLivArea;
+intE = d5*log_GrLivArea; intF = d6*log_GrLivArea; intG = d7*log_GrLivArea; intH = d8*log_GrLivArea; intI = d9*log_GrLivArea;
+intJ = d10*log_GrLivArea; intK = d11*log_GrLivArea; intL = d12*log_GrLivArea; intM = d13*log_GrLivArea; run;
+
+*proc print data = reg_test1;* run;
+
+data reg_test2; set reg_test1;													*EDA: Outlier/Leverage point Exclusion, given regression diagnostics;
+if _n_ = 329 then delete;
+if _n_ = 533 then delete; run;
+
+*proc print data = reg_test2;* run;
+
+data reg_test3; set reg_test2;
+if _n_ = 186 then delete; run;
+
+*proc print data = reg_test3;* run;
+
+data reg_test4; set reg_test3;
+if _n_ = 31 then delete; run;
+
+*proc print data = reg_test4;* run;
+
+data reg3_c; set reg_test3;														*Mean-centering dummy-coded factors of inflated variance;
+d6_c = (log_GrLivArea - 7.2645685)*(d6 - .0770819); 
+d3_c = (log_GrLivArea - 7.2645685)*(d3 - 1.548520); run;
+
+*proc print data = reg3_c;* run;
+
+data reg4_c; set reg_test4;														*Mean-centering on data with outlier/leverage point exclusion;
+d6_c = (log_GrLivArea - 7.2645685)*(d6 - .0770819); 
+d3_c = (log_GrLivArea - 7.2645685)*(d3 - 1.548520); run;
+
+*proc print data = reg4_c;* run;
+
+																				*Lines (11) from original document truncated;
+
+proc sgscatter data = train_sub3;												*EDA: Scatterplots by Neighborhood, w/ and w/o improbable prediction exclusion;	
+matrix SalePrice GrLivArea / group = Neighborhood;
+run;
+
+proc sgscatter data = train_sub2;
+matrix SalePrice GrLivArea / group = Neighborhood;
+run;
+
+proc sgscatter data = train_sub;
+matrix SalePrice GrLivArea / group = Neighborhood;
+run;
+
+proc sgscatter data = reg_test2;												*EDA: Model data scatterplots by Neighborhood, logged values;
+matrix log_SalePrice log_GrLivArea / group = Neighborhood;
+run;
+
+proc sgscatter data = reg_test3;
+matrix log_SalePrice log_GrLivArea / group = Neighborhood;
+run;
+
+
+proc sort data = train_sub4;													*EDA: Sorting by Neighborhood, individual scatterplots for regression assumption diagnostics;
+by Neighborhood; run;
+
+proc gplot data = train_sub4;
+by Neighborhood;
+plot SalePrice * GrLivArea;
+run;
+
+																				*Lines (10) from original document truncated;
+	
+proc glm data = train_test_log_full2_1 plots = all;								*Regression Analysis: Model of Interest;
+class Neighborhood;
+model log_SalePrice = GrLivArea | Neighborhood / cli solution tolerance;
+output out = results p = Predict;
+run;
+																				*Lines (14) from original document truncated;
+
+proc glmselect data = train_test_log_full2_1 plots = coefficientpanel;			*Automated Selection: Model of Interest, backward select PRESS;
+class Neighborhood / param = glm split;
+model log_SalePrice = log_GrLivArea | Neighborhood / selection = backward(select = PRESS) details = steps showpvalues;
+run;
+
+																				*Lines (31) from original document truncated;
+
+proc glmselect data = train_test_log_full2_9 plots = coefficientpanel;			*Automated Selection: Model of Interest, stepwise choose CV;
+class Neighborhood / param = glm split;
+model log_SalePrice = GrLivArea | Neighborhood / selection = stepwise(choose = CV) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (4) from original document truncated;
+
+proc glmselect data = train_test_log_full2_9 plots = coefficientpanel;			*Automated Selection: Model of Interest, stepwise choose CV, log GrLivArea;
+class Neighborhood / param = glm split;
+model log_SalePrice = log_GrLivArea | Neighborhood / selection = stepwise(choose = CV) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (14) from original document truncated;
+
+proc glmselect data = train_test_log_full2_9 plots = coefficientpanel;			*Automated Selection: Model of Interest, stepwise select CV, include GrLivArea;
+class Neighborhood / param = glm split;
+model log_SalePrice = GrLivArea | Neighborhood / selection = stepwise(select = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = train_test_log_full2_9 plots = coefficientpanel;			*Automated Selection: Model of Interest, stepwise choose CV, include GrLivArea;
+class Neighborhood / param = glm split;
+model log_SalePrice = GrLivArea | Neighborhood / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = train_test_log_full2_9 plots = coefficientpanel;			*Automated Selection: Model of Interest, forward choose CV, include GrLivArea;
+class Neighborhood / param = glm split;
+model log_SalePrice = GrLivArea | Neighborhood / selection = forward(select = CV) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (13) from original document truncated;
+
+proc glmselect data = train_test_log_full2 plots = coefficientpanel;			*Automated Selection: Model of Interest, forward select CV, include GrLivArea;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "CollgCr", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Crawfor", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = GrLivArea | Neighborhood / selection = forward(select = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+
+
+proc glmselect data = train_test_log_full2 plots = coefficientpanel;			*Automated Selection: Model of Interest, stepwise choose CV, include GrLivArea;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = GrLivArea | Neighborhood / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (10) from original document truncated;
+
+proc glmselect data = reg_test2 plots = coefficientpanel;						*Automated Selection: Model of Interest, stepwise choose CV, include GrLivArea, dummy-coded data;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = GrLivArea | Neighborhood / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (16) from original document truncated;
+
+proc glmselect data = reg_test2 plots = coefficientpanel;						*Automated Selection: Model of Interest, stepwise choose CV, include log GrLivArea, dummy-coded data, outlier/leverage exclusion;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea | Neighborhood / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (14) from original document truncated;
+
+proc glmselect data = reg_test3 plots = coefficientpanel;						*Automated Selection: Model of Interest, stepwise choose CV, include log GrLivArea, dummy-coded data, outlier/leverage exclusion;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea | Neighborhood / selection = stepwise(choose = CV include = 1) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glm data = reg_test3 plots = all outstat = logSP_logGrLivArea_stats_glm2;	*Regression Analysis: Model of Interest;
+model log_SalePrice = log_GrLivArea d1 d2 d3 d7 int3 int4 int5 int6 int7 int9 int10 / cli solution;
+output out = results p = Predict;
+run;
+
+proc reg data = reg_test3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg2 edf;			*Regression Analysis: Model of Interest;		
+model log_SalePrice = log_GrLivArea d1 d2 d3 d7 int3 int4 int5 int6 int7 int9 int10 / selection = stepwise include = 1 VIF influence adjrsq;
+run; quit;
+
+																				*Lines (15) from original document truncated;
+
+proc reg data = reg_test3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg3 edf;			*PROC REG Automated Selection: Dummy-coded data set, include log GrLivArea, comparable Neighborhoods, given QOI;						
+model log_SalePrice = log_GrLivArea d1 d2 d3 d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 int1 int2 int3 int4 int5 int6 int7 int8 int9 int10 int11 int12 int13 / selection = stepwise include = 1 VIF influence adjrsq;
+run; quit;
+
+																				*Lines (10) from original document truncated;
+
+proc reg data = reg_test3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg5 edf;			*Regression Analysis: Model of interest, dummy-coded Neighborhoods & Interactions;
+model log_SalePrice = log_GrLivArea d1 d2 d3 d4 d5 d7 d10 int3 int6 int7 int9 int13 / VIF influence adjrsq;
+run; quit;
+
+proc glm data = reg_test3 plots = all outstat = logSP_logGrLivArea_stats_glm3;
+model log_SalePrice = log_GrLivArea d1 d2 d3 d4 d5 d7 d10 int3 int6 int7 int9 int13 / cli solution;
+output out = results p = Predict;
+run;
+
+																				*Lines (8) from original document truncated;
+
+proc reg data = reg_test3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg8 edf;			*Regression Analysis: Model of interest, dummy-coded Neighborhoods & Interactions;
+model log_SalePrice = log_GrLivArea d1 d2 d3 int3 d4 d5 d6 d10 int6 int7 int9 / VIF influence adjrsq;
+run; quit;
+
+proc glm data = reg_test3 plots = all outstat = logSP_logGrLivArea_stats_glm4;
+model log_SalePrice = log_GrLivArea d1 d2 d3 int3 d4 d5 d6 d10 int6 int7 int9 / cli solution;
+output out = results p = Predict;
+run;
+
+
+
+
+proc glmselect data = reg_test3 plots = coefficientpanel;						*Automated Selection: Model of Interest, forward choose CV, include log GrLivArea and Neighborhoods of interest, dummy-coded data, outlier/leverage exclusion, comparable Neighborhoods, given QOI;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea d1 d2 d3 int1 int2 int3 d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 int4 int5 int6 int7 int8 int9 int10 int11 int12 int13 / selection = forward(choose = CV include = 4) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (5) from original document truncated;
+
+proc glmselect data = reg_test3 plots = coefficientpanel;						*Automated Selection: Model of Interest, stepwise choose CV, include log GrLivArea and Neighborhoods of interest, dummy-coded data, outlier/leverage exclusion, comparable Neighborhoods, given QOI;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea d1 d2 d3 int1 int2 int3 d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 int4 int5 int6 int7 int8 int9 int10 int11 int12 int13 / selection = stepwise(choose = CV include = 4) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+																				*Lines (7) from original document truncated;
+
+proc glmselect data = reg_test3 plots = coefficientpanel;						*Automated Selection: Model of Interest, forward choose CV, include log GrLivArea and Neighborhoods of interest, dummy-coded data with log interactions, outlier/leverage exclusion, comparable Neighborhoods, given QOI;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea d1 d2 d3 intA intB intC d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 intD intE intF intG intH intI intJ intK intL intM / selection = forward(choose = CV include = 4) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = reg_test3 plots = coefficientpanel;						*Automated Selection: Model of Interest, stepwise choose CV, include log GrLivArea and Neighborhoods of interest, dummy-coded data with log interactions, outlier/leverage exclusion, comparable Neighborhoods, given QOI;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea d1 d2 d3 intA intB intC d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 intD intE intF intG intH intI intJ intK intL intM / selection = stepwise(choose = CV include = 4) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+proc glmselect data = reg_test3 plots = coefficientpanel;						*Automated Selection: Model of Interest, backward choose CV, include log GrLivArea and Neighborhoods of interest, dummy-coded data with log interactions, outlier/leverage exclusion, comparable Neighborhoods, given QOI;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea d1 d2 d3 intA intB intC d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 intD intE intF intG intH intI intJ intK intL intM / selection = backward(choose = CV include = 4) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+
+
+
+proc reg data = reg_test3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg14 edf;		*Regression Analysis: Models of Interest, including/excluding individual Neighborhoods and Interactions;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intC intD intE intI intJ / VIF influence adjrsq;
+run; quit;
+
+
+proc reg data = reg_test3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg13 edf;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intC intD intE intI intJ intM / VIF influence adjrsq;
+run; quit;
+
+
+proc reg data = reg_test3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg12 edf;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intC d6 intD intE intF intI intJ intM / VIF influence adjrsq;
+run; quit;
+
+
+
+proc reg data = reg_test3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg11 edf;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intC d4 d5 d6 d10 intF intG intI / VIF influence adjrsq;
+run; quit;
+
+proc glm data = reg_test3 plots = all outstat = logSP_logGrLivArea_stats_glm5;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intC d4 d5 d6 d10 intF intG intI / cli solution;
+output out = results p = Predict;
+run;
+
+
+
+proc glm data = reg_test3 plots = all outstat = logSP_logGrLivArea_stats_glm8;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intC d6 intD intE intF intI intJ intM / cli solution;
+output out = results p = Predict;
+run;
+
+proc glm data = reg_test3 plots = all outstat = logSP_logGrLivArea_stats_glm7;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intC intD intE intI intJ intM / cli solution;
+output out = results p = Predict;
+run;
+
+proc glm data = reg_test3 plots = all outstat = logSP_logGrLivArea_stats_glm6;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intC intD intE intI intJ / cli solution;
+output out = results p = Predict;
+run;
+
+
+
+proc reg data = reg_test3  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg15 edf;			*PROC REG Automated Selection: Dummy-coded data set with log interactions, include log GrLivArea and Neighborhoods of interest, also those comparable, given QOI;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intA intB intC d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 intD intE intF intG intH intI intJ intK intL intM / selection = stepwise include = 4 VIF influence adjrsq;
+run; quit;
+
+
+
+proc means data = reg_test3;													*Identifying means to adjust variance inflation factor;
+var log_GrLivArea d3 intC d6 intF; run;
+
+
+proc reg data = reg3_c  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg16 edf;		*Regression Analysis: Model of Interest (Alternative Model);
+model log_SalePrice = log_GrLivArea d1 d2 d3 d3_c d6 intD intE d6_c intI intJ intM / VIF influence adjrsq;
+run; quit;
+
+
+
+
+
+
+
+
+
+proc reg data = reg4_c plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg19 edf;			*PROC REG Automated Selection: Mean-centered, dummy-coded data set with log interactions and outlier/leverage point exclusion, include log GrLivArea and Neighborhoods of interest, also those comparable, given QOI;
+model log_SalePrice = log_GrLivArea d1 d2 d3 intA intB intC d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 intD intE intF intG intH intI intJ intK intL intM / selection = stepwise include = 4 VIF influence adjrsq;
+run; quit;
+
+proc glmselect data = reg4_c plots = coefficientpanel;																*Automated Selection: Mean-centered, dummy-coded data set with log interactions and outlier/leverage point exclusion, include log GrLivArea and Neighborhoods of interest, also those comparable, given QOI;
+class Neighborhood / param = glm split;
+where Neighborhood in ("BrkSide", "Edwards", "NAmes", "BrDale", "NridgHt", "OldTown", "Sawyer", "SawyerW", "Somerst", "StoneBr", "Gilbert", "Mitchel", "NWAmes");
+model log_SalePrice = log_GrLivArea d1 d2 d3 intA intB intC d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 intD intE intF intG intH intI intJ intK intL intM / selection = stepwise(choose = CV include = 4) cvdetails = CVPRESS details = steps showpvalues;
+run;
+
+
+
+proc reg data = reg4_c  plots(label)=(CooksD RStudentByLeverage) outest= logSP_logGrLivArea_stats_reg18 edf;		*Regression Analysis: Model of Interest (Preferred Model);
+model log_SalePrice = log_GrLivArea d1 d2 d3 d3_c d6 intD intE d6_c intI intJ / VIF influence adjrsq;
+run; quit;
+
+proc glm data = reg4_c plots = all outstat = logSP_logGrLivArea_stats_glm9;
+model log_SalePrice = log_GrLivArea d1 d2 d3 d3_c d6 intD intE d6_c intI intJ / cli solution;
+output out = results p = Predict;
+run;
+
+proc sgscatter data = reg4_c;																						*Clean data visualization, logged values, by Neighborhood;
+matrix log_SalePrice log_GrLivArea / group = Neighborhood;
+run;
+
+
+
+
+
+
+data results2; set results;																							*Skeleton Code for Kaggle Submission;
+if Predict > 0 then SalePrice = Predict;
+if Predict < 0 then SalePrice = 11980;
+keep id SalePrice;
+where id > 800;
+;
+
+proc print data = results2; run;
+
+proc means data = results2;
+var SalePrice;
+run;

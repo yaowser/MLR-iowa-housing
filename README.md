@@ -1,4 +1,7 @@
 # iowa-housing
+
+https://www.slideshare.net/YaoYao44/predicting-sales-price-of-homes-using-multiple-linear-regression
+
 I included the R code on imputation
 
 change directories on lines 1, 3 and 10...I combined both train and test data sets for more power on sample size
